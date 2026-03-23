@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-xn-qkun*k*a&e($q@6#=0nzd0c=p$n28g!wa=sh_4c*mf%f7s('
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY", "django-insecure-xn-qkun*k*a&e($q@6#=0nzd0c=p$n28g!wa=sh_4c*mf%f7s("
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if host.strip()]
 
 
 # Application definition
@@ -37,6 +40,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    'rest_framework',
+    
+    'app_base',
+    'app_events'
 ]
 
 MIDDLEWARE = [
@@ -79,6 +87,31 @@ DATABASES = {
     }
 }
 
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
+
+if DB_ENGINE == "mysql":
+    import pymysql
+
+    pymysql.install_as_MySQLdb()
+    # Django 6 validates MySQLdb driver version (>= 2.2.1).
+    # When using PyMySQL as MySQLdb, we expose a compatible version tuple/string.
+    pymysql.version_info = (2, 2, 1, "final", 0)
+    pymysql.__version__ = "2.2.1"
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("MYSQL_DATABASE", "sibp_db"),
+            "USER": os.getenv("MYSQL_USER", "sibp_user"),
+            "PASSWORD": os.getenv("MYSQL_PASSWORD", "sibp_pass"),
+            "HOST": os.getenv("MYSQL_HOST", "mysql"),
+            "PORT": os.getenv("MYSQL_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
+    }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -115,3 +148,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Django REST Framework Settings
+REST_FRAMEWORK = {
+    # Define a paginação padrão (ex: 10 itens por página)
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+
+    # Define as classes de permissão padrão
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+
+    # Define os métodos de autenticação padrão
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    
+    # Formatos de renderização e parsing de dados
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer', # Interface visual da API pelo navegador
+    ],
+}

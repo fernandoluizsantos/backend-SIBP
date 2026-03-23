@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: sibp-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sibp_db}
+      MYSQL_USER: ${MYSQL_USER:-sibp_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sibp_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-rootpass} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sibp-django
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      DB_ENGINE: mysql
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sibp_db}
+      MYSQL_USER: ${MYSQL_USER:-sibp_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sibp_pass}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-rootsib}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-rootsib@dev.com}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-rootsib2026}
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data:
